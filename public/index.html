@@ -1,74 +1,168 @@
 <!DOCTYPE html>
-  <html lang="pt-BR">
+<html lang="pt-BR">
   <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Quant Trading Bot</title>
-<link rel="stylesheet" href="style.css">
-</head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Quant Trading Bot</title>
+    <link rel="stylesheet" href="style.css">
+  </head>
 <body>
-<div class="container">
-<header>
-<div class="header-left">
-<h1>Quant Trading Bot</h1>
-<span id="status-badge" class="badge badge-off">PARADO</span>
-</div>
-<div class="header-right">
-  <span id="current-symbol" class="symbol">--</span>
-  <span id="clock"></span>
-  </div>
-  </header>
-  <section class="card control-card">
-  <div class="mode-selector">
-  <label class="mode-btn"><input type="radio" name="mode" value="DRY_RUN" checked><span>Simulacao</span></label>
-  <label class="mode-btn"><input type="radio" name="mode" value="LIVE"><span>LIVE</span></label>
-  </div>
-  <div class="toggle-area">
-  <button id="toggle-btn" class="btn-start" onclick="toggleBot()">INICIAR BOT</button>
-  <p id="started-at" class="started-at"></p>
-  </div>
-  </section>
-  <section class="card">
-  <h2>Configuracoes</h2>
-  <div class="settings-grid">
-  <div class="setting-item"><label>Capital (USDT)</label><input type="number" id="capital" value="20" min="5" step="1"></div>
-  <div class="setting-item"><label>Alavancagem</label><input type="number" id="leverage" value="5" min="1" max="20" step="1"></div>
-  <div class="setting-item"><label>Stop Loss (%)</label><input type="number" id="stopLoss" value="1.5" min="0.5" max="5" step="0.1"></div>
-  <div class="setting-item"><label>Take Profit (%)</label><input type="number" id="takeProfit" value="4" min="1" max="10" step="0.1"></div>
-  </div>
-  <button class="btn-save" onclick="saveSettings()">Salvar</button>
-  <p id="settings-msg" class="msg"></p>
-  </section>
-  <section class="stats-grid">
-  <div class="card stat-card"><span class="stat-label">Total Ciclos</span><span id="stat-total" class="stat-value">0</span></div>
-  <div class="card stat-card"><span class="stat-label">Executadas</span><span id="stat-executed" class="stat-value">0</span></div>
-  <div class="card stat-card"><span class="stat-label">Simulacoes</span><span id="stat-dry" class="stat-value">0</span></div>
-  <div class="card stat-card"><span class="stat-label">Esperando</span><span id="stat-wait" class="stat-value">0</span></div>
-  </section>
-  <section class="card" id="analysis-card" style="display:none">
-  <h2>Ultima Analise - <span id="analysis-symbol"></span></h2>
-  <div class="analysis-grid">
-  <div class="analysis-item"><span class="a-label">Preco</span><span id="a-price" class="a-value">--</span></div>
-  <div class="analysis-item"><span class="a-label">RSI</span><span id="a-rsi" class="a-value">--</span></div>
-  <div class="analysis-item"><span class="a-label">Volatilidade</span><span id="a-vol" class="a-value">--</span></div>
-  <div class="analysis-item"><span class="a-label">Swing</span><span id="a-swing" class="a-value">--</span></div>
-  <div class="analysis-item"><span class="a-label">Tendencia MA</span><span id="a-trend" class="a-value">--</span></div>
-  <div class="analysis-item"><span class="a-label">Order Book</span><span id="a-book" class="a-value">--</span></div>
-  <div class="analysis-item"><span class="a-label">Bull</span><span id="a-bull" class="a-value">--</span></div>
-  <div class="analysis-item"><span class="a-label">Bear</span><span id="a-bear" class="a-value">--</span></div>
-  </div>
-  <div id="decision-box" class="decision-box">--</div>
-  </section>
-  <section class="card">
-  <h2>Historico de Operacoes</h2>
-  <div class="table-wrap">
-  <table>
-  <thead><tr><th>Hora</th><th>Par</th><th>Decisao</th><th>Preco</th><th>Qty</th><th>Stop Loss</th><th>Take Profit</th><th>Modo</th></tr></thead>
-  <tbody id="history-body"><tr><td colspan="8" class="empty">Nenhuma operacao ainda.</td></tr></tbody>
-  </table>
-  </div>
-  </section>
-  </div>
+    <div class="container">
+
+          <!-- Header -->
+          <div class="header">
+                  <div class="header-left">
+                            <h1>Quant Trading Bot</h1>
+                          <span id="status-badge" class="badge badge-off">PARADO</span>span>
+                  </div>div>
+                <div class="header-right">
+                        <span id="current-symbol" class="symbol-tag">--</span>span>
+                        <span id="clock" class="clock">--:--:--</span>span>
+                </div>div>
+          </div>div>
+    
+        <!-- Controle Principal -->
+        <div class="card">
+              <div class="control-row">
+                      <div class="mode-selector">
+                                <label class="radio-label">
+                                            <input type="radio" name="mode" value="DRY_RUN" checked> Simulacao
+                                </label>label>
+                                <label class="radio-label">
+                                            <input type="radio" name="mode" value="LIVE"> LIVE
+                                </label>label>
+                      </div>div>
+                      <div class="start-info">
+                                <span id="started-at" class="started-at"></span>span>
+                                <button id="toggle-btn" class="btn-start" onclick="toggleBot()">INICIAR BOT</button>button>
+                      </div>div>
+              </div>div>
+        </div>div>
+    
+        <!-- Saldo Binance Futures -->
+        <div class="card">
+              <h3 class="card-title">Saldo Binance Futures</h3>
+              <div class="balance-grid">
+                      <div class="balance-item">
+                                <div class="balance-label">Saldo Disponivel</div>div>
+                                <div class="balance-value" id="balance-value">$ --</div>div>
+                      </div>div>
+                      <div class="balance-item">
+                                <div class="balance-label">Capital Configurado</div>div>
+                                <div class="balance-value" id="capital-configured">$ --</div>div>
+                      </div>div>
+                      <div class="balance-item">
+                                <div class="balance-label">Alavancagem</div>div>
+                                <div class="balance-value" id="leverage-display">-- x</div>div>
+                      </div>div>
+                      <div class="balance-item">
+                                <div class="balance-label">Poder de Compra</div>div>
+                                <div class="balance-value" id="buying-power">$ --</div>div>
+                      </div>div>
+              </div>div>
+        </div>div>
+    
+        <!-- Configuracoes -->
+        <div class="card">
+              <h3 class="card-title">Configuracoes</h3>
+              <div class="settings-grid">
+                      <div class="setting-item">
+                                <label>Capital (USDT)</label>
+                                <input type="number" id="capital" value="20" min="1" step="1">
+                      </div>div>
+                      <div class="setting-item">
+                                <label>Alavancagem</label>
+                                <input type="number" id="leverage" value="5" min="1" max="20">
+                      </div>div>
+                      <div class="setting-item">
+                                <label>Stop Loss (%)</label>
+                                <input type="number" id="stopLoss" value="1.5" min="0.1" step="0.1">
+                      </div>div>
+                      <div class="setting-item">
+                                <label>Take Profit (%)</label>
+                                <input type="number" id="takeProfit" value="4" min="0.1" step="0.1">
+                      </div>div>
+              </div>div>
+              <button class="btn-save" onclick="saveSettings()">Salvar</button>button>
+              <span id="settings-msg" class="settings-msg"></span>span>
+        </div>div>
+    
+        <!-- Estatisticas -->
+        <div class="stats-grid">
+              <div class="stat-card">
+                      <div class="stat-label">Total Ciclos</div>div>
+                      <div class="stat-value" id="stat-total">0</div>div>
+              </div>div>
+              <div class="stat-card">
+                      <div class="stat-label">Executadas</div>div>
+                      <div class="stat-value" id="stat-executed">0</div>div>
+              </div>div>
+              <div class="stat-card">
+                      <div class="stat-label">Simulacoes</div>div>
+                      <div class="stat-value" id="stat-dry">0</div>div>
+              </div>div>
+              <div class="stat-card">
+                      <div class="stat-label">Esperando</div>div>
+                      <div class="stat-value" id="stat-wait">0</div>div>
+              </div>div>
+        </div>div>
+    
+        <!-- Historico de Sessoes -->
+        <div class="card">
+              <h3 class="card-title">Historico de Sessoes do Bot</h3>
+              <div class="table-wrap">
+                      <table>
+                                  <thead>
+                                                <tr>
+                                                                <th>#</th>
+                                                <th>Modo</th>
+                                                <th>Inicio</th>
+                                                <th>Duracao</th>
+                                                <th>Capital</th>
+                                                <th>Saldo Inicial</th>
+                                                <th>Saldo Final</th>
+                                                <th>Lucro/Perda</th>
+                                                <th>Ciclos</th>
+                                                </tr>
+                                  </thead>
+                                <tbody id="sessions-body">
+                                  <tr><td colspan="9" class="empty">Nenhuma sessao ainda.</td>td></tr>
+                                </tbody>tbody>
+                      </table>
+              </div>div>
+        </div>div>
+    
+        <!-- Historico de Operacoes -->
+        <div class="card">
+              <h3 class="card-title">Historico de Operacoes</h3>
+              <div class="table-wrap">
+                      <table>
+                                <thead>
+                                            <tr>
+                                                            <th>Hora</th>
+                                              <th>Par</th>
+                                              <th>Decisao</th>
+                                              <th>Preco</th>
+                                              <th>Qty</th>
+                                              <th>Stop Loss</th>
+                                              <th>Take Profit</th>
+                                              <th>Modo</th>
+                                            </tr>
+                                </thead>
+                                <tbody id="history-body">
+                                  <tr><td colspan="8" class="empty">Nenhuma operacao ainda.</td>td></tr>
+                                </tbody>tbody>
+                      </table>
+              </div>div>
+        </div>div>
+    
+    </div>div>
   <script src="app.js"></script>
-  </body>
-  </html>
+</body>
+</html>html></tr></th></th>
+                                            </tr></tr></th></th>
+                                                </tr>
+                                  </thead>
+                      </table></label></label></h1>
+</body></title>
+  </head>
