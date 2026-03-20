@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+  <html lang="pt-BR">
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quant Trading Bot</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="container">
+<header>
+<div class="header-left">
+<h1>Quant Trading Bot</h1>
+<span id="status-badge" class="badge badge-off">PARADO</span>
+</div>
+<div class="header-right">
+  <span id="current-symbol" class="symbol">--</span>
+  <span id="clock"></span>
+  </div>
+  </header>
+  <section class="card control-card">
+  <div class="mode-selector">
+  <label class="mode-btn"><input type="radio" name="mode" value="DRY_RUN" checked><span>Simulacao</span></label>
+  <label class="mode-btn"><input type="radio" name="mode" value="LIVE"><span>LIVE</span></label>
+  </div>
+  <div class="toggle-area">
+  <button id="toggle-btn" class="btn-start" onclick="toggleBot()">INICIAR BOT</button>
+  <p id="started-at" class="started-at"></p>
+  </div>
+  </section>
+  <section class="card">
+  <h2>Configuracoes</h2>
+  <div class="settings-grid">
+  <div class="setting-item"><label>Capital (USDT)</label><input type="number" id="capital" value="20" min="5" step="1"></div>
+  <div class="setting-item"><label>Alavancagem</label><input type="number" id="leverage" value="5" min="1" max="20" step="1"></div>
+  <div class="setting-item"><label>Stop Loss (%)</label><input type="number" id="stopLoss" value="1.5" min="0.5" max="5" step="0.1"></div>
+  <div class="setting-item"><label>Take Profit (%)</label><input type="number" id="takeProfit" value="4" min="1" max="10" step="0.1"></div>
+  </div>
+  <button class="btn-save" onclick="saveSettings()">Salvar</button>
+  <p id="settings-msg" class="msg"></p>
+  </section>
+  <section class="stats-grid">
+  <div class="card stat-card"><span class="stat-label">Total Ciclos</span><span id="stat-total" class="stat-value">0</span></div>
+  <div class="card stat-card"><span class="stat-label">Executadas</span><span id="stat-executed" class="stat-value">0</span></div>
+  <div class="card stat-card"><span class="stat-label">Simulacoes</span><span id="stat-dry" class="stat-value">0</span></div>
+  <div class="card stat-card"><span class="stat-label">Esperando</span><span id="stat-wait" class="stat-value">0</span></div>
+  </section>
+  <section class="card" id="analysis-card" style="display:none">
+  <h2>Ultima Analise - <span id="analysis-symbol"></span></h2>
+  <div class="analysis-grid">
+  <div class="analysis-item"><span class="a-label">Preco</span><span id="a-price" class="a-value">--</span></div>
+  <div class="analysis-item"><span class="a-label">RSI</span><span id="a-rsi" class="a-value">--</span></div>
+  <div class="analysis-item"><span class="a-label">Volatilidade</span><span id="a-vol" class="a-value">--</span></div>
+  <div class="analysis-item"><span class="a-label">Swing</span><span id="a-swing" class="a-value">--</span></div>
+  <div class="analysis-item"><span class="a-label">Tendencia MA</span><span id="a-trend" class="a-value">--</span></div>
+  <div class="analysis-item"><span class="a-label">Order Book</span><span id="a-book" class="a-value">--</span></div>
+  <div class="analysis-item"><span class="a-label">Bull</span><span id="a-bull" class="a-value">--</span></div>
+  <div class="analysis-item"><span class="a-label">Bear</span><span id="a-bear" class="a-value">--</span></div>
+  </div>
+  <div id="decision-box" class="decision-box">--</div>
+  </section>
+  <section class="card">
+  <h2>Historico de Operacoes</h2>
+  <div class="table-wrap">
+  <table>
+  <thead><tr><th>Hora</th><th>Par</th><th>Decisao</th><th>Preco</th><th>Qty</th><th>Stop Loss</th><th>Take Profit</th><th>Modo</th></tr></thead>
+  <tbody id="history-body"><tr><td colspan="8" class="empty">Nenhuma operacao ainda.</td></tr></tbody>
+  </table>
+  </div>
+  </section>
+  </div>
+  <script src="app.js"></script>
+  </body>
+  </html>
