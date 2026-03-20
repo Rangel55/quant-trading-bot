@@ -1,0 +1,58 @@
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0d1117;color:#e6edf3;font-family:'Segoe UI',sans-serif;font-size:14px}
+.container{max-width:1100px;margin:0 auto;padding:20px}
+header{display:flex;justify-content:space-between;align-items:center;padding:20px 0 30px}
+header h1{font-size:22px;font-weight:700;color:#58a6ff}
+.header-right{display:flex;gap:16px;align-items:center;font-size:13px;color:#8b949e}
+.symbol{background:#161b22;padding:4px 12px;border-radius:20px;color:#58a6ff;font-weight:600}
+.badge{padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700;letter-spacing:1px}
+.badge-off{background:#21262d;color:#8b949e}
+.badge-on{background:#1a4731;color:#3fb950}
+.badge-live{background:#3d1f00;color:#f78166}
+.card{background:#161b22;border:1px solid #30363d;border-radius:12px;padding:20px;margin-bottom:16px}
+.control-card{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px}
+.mode-selector{display:flex;gap:12px}
+.mode-btn{cursor:pointer;display:flex;align-items:center;gap:8px}
+.mode-btn input{accent-color:#58a6ff;width:16px;height:16px}
+.mode-btn span{font-size:14px;font-weight:500}
+.toggle-area{display:flex;align-items:center;gap:16px}
+.btn-start{background:#238636;border:none;color:#fff;padding:12px 32px;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer;transition:.2s}
+.btn-start:hover{background:#2ea043}
+.btn-stop{background:#da3633;border:none;color:#fff;padding:12px 32px;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer;transition:.2s}
+.btn-stop:hover{background:#f85149}
+.started-at{font-size:12px;color:#8b949e}
+h2{font-size:15px;font-weight:600;margin-bottom:16px;color:#e6edf3}
+.settings-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px}
+@media(max-width:700px){.settings-grid{grid-template-columns:repeat(2,1fr)}}
+.setting-item label{display:block;font-size:12px;color:#8b949e;margin-bottom:6px}
+.setting-item input{width:100%;background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:8px 10px;color:#e6edf3;font-size:14px}
+.setting-item input:focus{outline:none;border-color:#58a6ff}
+.btn-save{background:#1f6feb;border:none;color:#fff;padding:8px 20px;border-radius:6px;font-size:13px;cursor:pointer}
+.btn-save:hover{background:#388bfd}
+.msg{font-size:12px;color:#3fb950;margin-top:8px;min-height:16px}
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+@media(max-width:700px){.stats-grid{grid-template-columns:repeat(2,1fr)}}
+.stat-card{text-align:center;padding:16px}
+.stat-label{display:block;font-size:12px;color:#8b949e;margin-bottom:8px}
+.stat-value{font-size:28px;font-weight:700;color:#58a6ff}
+.analysis-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+@media(max-width:700px){.analysis-grid{grid-template-columns:repeat(2,1fr)}}
+.analysis-item{background:#0d1117;border-radius:8px;padding:10px}
+.a-label{display:block;font-size:11px;color:#8b949e;margin-bottom:4px}
+.a-value{font-size:15px;font-weight:600;color:#e6edf3}
+.decision-box{text-align:center;padding:16px;border-radius:10px;font-size:24px;font-weight:700;background:#21262d;color:#e6edf3;letter-spacing:2px}
+.decision-COMPRAR{background:#1a4731;color:#3fb950}
+.decision-VENDER{background:#3d1f00;color:#f78166}
+.decision-ESPERAR{background:#21262d;color:#8b949e}
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{background:#21262d;padding:10px 12px;text-align:left;font-weight:600;color:#8b949e;border-bottom:1px solid #30363d}
+td{padding:9px 12px;border-bottom:1px solid #21262d;color:#e6edf3}
+tr:last-child td{border-bottom:none}
+.empty{text-align:center;color:#8b949e;padding:20px}
+.tag{padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600}
+.tag-buy{background:#1a4731;color:#3fb950}
+.tag-sell{background:#3d1f00;color:#f78166}
+.tag-wait{background:#21262d;color:#8b949e}
+.tag-live{background:#3d1f00;color:#f78166}
+.tag-dry{background:#1f3a5f;color:#58a6ff}
