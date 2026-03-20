@@ -1,141 +1,87 @@
-// ETAPA 2: Validador de Conexao e Seguranca da API Binance
-// Garante que todas as condicoes de seguranca sao atendidas
-// antes de qualquer operacao real.
-
 const { publicGet, privateGet } = require('./binance.service');
 const { API_KEY, API_SECRET, SYMBOL } = require('../config/settings');
 
-// Valida conexao basica com a Binance (sem autenticacao)
 async function testPublicConnection() {
-  try {
-    await publicGet('/api/v3/ping');
-    const timeData = await publicGet('/api/v3/time');
-    const diff = Math.abs(Date.now() - timeData.serverTime);
-    if (diff > 5000) {
-      console.warn('AVISO: Diferenca de horario com servidor Binance: ' + diff + 'ms');
-      console.warn('Isso pode causar erros de assinatura. Sincronize o relogio do sistema.');
+    try {
+          await publicGet('/fapi/v1/ping');
+          const timeData = await publicGet('/fapi/v1/time');
+          const diff = Math.abs(Date.now() - timeData.serverTime);
+          if (diff > 5000) console.warn('AVISO: Diferenca de horario: ' + diff + 'ms');
+          console.log('Conexao Futures OK | Server time: ' + new Date(timeData.serverTime).toISOString());
+          return true;
+    } catch (err) {
+          console.error('ERRO conexao futures: ' + err.message);
+          return false;
     }
-    console.log('Conexao publica OK | Server time: ' + new Date(timeData.serverTime).toISOString());
-    return true;
-  } catch (err) {
-    console.error('ERRO na conexao publica: ' + err.message);
-    return false;
-  }
 }
 
-// Valida autenticacao com a Binance (com API Key/Secret)
 async function testPrivateConnection() {
-  if (!API_KEY || API_KEY === 'cole_sua_api_key_aqui' || API_KEY === '') {
-    console.error('ERRO: BINANCE_API_KEY nao configurada no arquivo .env');
-    return false;
-  }
-  if (!API_SECRET || API_SECRET === 'cole_seu_api_secret_aqui' || API_SECRET === '') {
-    console.error('ERRO: BINANCE_API_SECRET nao configurada no arquivo .env');
-    return false;
-  }
-  try {
-    const account = await privateGet('/api/v3/account');
-    const usdtBalance = account.balances.find(function(b) { return b.asset === 'USDT'; });
-    const balance = usdtBalance ? parseFloat(usdtBalance.free) : 0;
-    console.log('Autenticacao OK | Saldo USDT disponivel: $' + balance.toFixed(2));
-
-    // Verifica permissoes da conta
-    if (!account.canTrade) {
-      console.error('ERRO: Esta conta nao tem permissao para negociar!');
-      return false;
+    if (!API_KEY || API_KEY === 'cole_sua_api_key_aqui') {
+          console.error('ERRO: BINANCE_API_KEY nao configurada');
+          return false;
     }
-    console.log('Permissoes OK | canTrade: ' + account.canTrade + ' | canDeposit: ' + account.canDeposit);
-    return true;
-  } catch (err) {
-    if (err.response && err.response.data) {
-      var code = err.response.data.code;
-      var msg  = err.response.data.msg;
-      if (code === -2015) {
-        console.error('ERRO DE AUTENTICACAO: API Key invalida ou sem permissoes.');
-        console.error('Verifique se copiou a chave corretamente e as permissoes estao corretas.');
-      } else if (code === -1021) {
-        console.error('ERRO DE TIMESTAMP: Relogio do sistema desincronizado com a Binance.');
-        console.error('Execute: sudo ntpdate pool.ntp.org');
-      } else {
-        console.error('ERRO Binance [' + code + ']: ' + msg);
-      }
-    } else {
-      console.error('ERRO na autenticacao: ' + err.message);
+    try {
+          const account = await privateGet('/fapi/v2/account');
+          const usdtAsset = account.assets.find(function(a) { return a.asset === 'USDT'; });
+          const balance = usdtAsset ? parseFloat(usdtAsset.availableBalance) : 0;
+          console.log('Autenticacao Futures OK | Saldo: $' + balance.toFixed(2));
+          return true;
+    } catch (err) {
+          if (err.response && err.response.data) {
+                  console.error('ERRO Binance [' + err.response.data.code + ']: ' + err.response.data.msg);
+          } else {
+                  console.error('ERRO autenticacao futures: ' + err.message);
+          }
+          return false;
     }
-    return false;
-  }
 }
 
-// Valida se o simbolo configurado existe e esta ativo
 async function testSymbol() {
-  try {
-    const info = await publicGet('/api/v3/exchangeInfo', { symbol: SYMBOL });
-    var symbolInfo = info.symbols.find(function(s) { return s.symbol === SYMBOL; });
-    if (!symbolInfo) {
-      console.error('ERRO: Simbolo ' + SYMBOL + ' nao encontrado na Binance.');
-      return false;
+    try {
+          const info = await publicGet('/fapi/v1/exchangeInfo');
+          var symbolInfo = info.symbols.find(function(s) { return s.symbol === SYMBOL; });
+          if (!symbolInfo || symbolInfo.status !== 'TRADING') {
+                  console.error('ERRO: Simbolo ' + SYMBOL + ' invalido para Futures.');
+                  return false;
+          }
+          console.log('Simbolo OK | ' + SYMBOL + ' | Status: ' + symbolInfo.status);
+          return true;
+    } catch (err) {
+          console.error('ERRO ao validar simbolo: ' + err.message);
+          return false;
     }
-    if (symbolInfo.status !== 'TRADING') {
-      console.error('ERRO: Simbolo ' + SYMBOL + ' nao esta em status TRADING (status: ' + symbolInfo.status + ')');
-      return false;
-    }
-    console.log('Simbolo OK | ' + SYMBOL + ' | Status: ' + symbolInfo.status);
-    return true;
-  } catch (err) {
-    console.error('ERRO ao validar simbolo: ' + err.message);
-    return false;
-  }
 }
 
-// VALIDACAO COMPLETA - executa todos os testes de seguranca
 async function runFullValidation(dryRun) {
-  console.log('');
-  console.log('==============================================');
-  console.log('  VALIDACAO DE SEGURANCA - ETAPA 2');
-  console.log('==============================================');
+    console.log('');
+    console.log('==============================================');
+    console.log(' VALIDACAO DE SEGURANCA - FUTURES');
+    console.log('==============================================');
+    var results = { publicConnection: false, privateConnection: false, symbolValid: false, allPassed: false };
 
-  var results = {
-    publicConnection: false,
-    privateConnection: false,
-    symbolValid:      false,
-    allPassed:        false,
-  };
+  console.log('Teste 1/3: Conexao com Binance Futures...');
+    results.publicConnection = await testPublicConnection();
+    if (!results.publicConnection) { console.error('FALHA: Sem conexao.'); return results; }
 
-  // Teste 1: Conexao publica
-  console.log('Teste 1/3: Conexao com Binance...');
-  results.publicConnection = await testPublicConnection();
-  if (!results.publicConnection) {
-    console.error('FALHA: Sem conexao com a Binance. Verifique sua internet.');
-    return results;
-  }
-
-  // Teste 2: Autenticacao privada (apenas se nao for dry run sem chaves)
-  console.log('Teste 2/3: Autenticacao da API...');
-  if (dryRun && (!API_KEY || API_KEY === 'cole_sua_api_key_aqui')) {
-    console.log('DRY RUN sem chaves configuradas - pulando autenticacao privada');
-    results.privateConnection = true;
-  } else {
-    results.privateConnection = await testPrivateConnection();
-    if (!results.privateConnection) {
-      console.error('FALHA: Autenticacao invalida. Verifique suas chaves no .env');
-      return results;
+  console.log('Teste 2/3: Autenticacao da API Futures...');
+    if (dryRun && (!API_KEY || API_KEY === 'cole_sua_api_key_aqui')) {
+          console.log('DRY RUN sem chaves - pulando autenticacao');
+          results.privateConnection = true;
+    } else {
+          results.privateConnection = await testPrivateConnection();
+          if (!results.privateConnection) { console.error('FALHA: Autenticacao invalida.'); return results; }
     }
-  }
 
-  // Teste 3: Simbolo de trading
-  console.log('Teste 3/3: Validando simbolo ' + SYMBOL + '...');
-  results.symbolValid = await testSymbol();
-  if (!results.symbolValid) {
-    console.error('FALHA: Simbolo invalido. Verifique SYMBOL no .env');
-    return results;
-  }
+  console.log('Teste 3/3: Validando simbolo ' + SYMBOL + ' em Futures...');
+    results.symbolValid = await testSymbol();
+    if (!results.symbolValid) { console.error('FALHA: Simbolo invalido.'); return results; }
 
   results.allPassed = true;
-  console.log('==============================================');
-  console.log('  TODOS OS TESTES PASSARAM - Sistema OK');
-  console.log('==============================================');
-  console.log('');
-  return results;
+    console.log('==============================================');
+    console.log(' TODOS OS TESTES PASSARAM - Sistema OK');
+    console.log('==============================================');
+    console.log('');
+    return results;
 }
 
 module.exports = { testPublicConnection, testPrivateConnection, testSymbol, runFullValidation };
