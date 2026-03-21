@@ -33,22 +33,3 @@ module.exports = {
     RSI_PERIOD: 14,
     RSI_OVERBOUGHT: 70,
     RSI_OVERSOLD: 30,
-
-    // --- Scanner de melhores moedas ---
-    // Pares monitorados para selecao automatica do melhor
-    SCAN_SYMBOLS: [
-          'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'SOLUSDT', 'XRPUSDT',
-          'DOGEUSDT', 'ADAUSDT', 'AVAXUSDT', 'LINKUSDT', 'DOTUSDT',
-          'MATICUSDT', 'LTCUSDT', 'ATOMUSDT', 'NEARUSDT', 'APTUSDT'
-        ],
-
-    // --- Criterios de selecao do melhor par ---
-    MIN_VOLUME_24H: 50000000,     // volume minimo 24h em USDT (50M)
-    MIN_CHANGE_24H: 1.5,          // variacao minima 24h em % para ter momentum
-
-    // --- Intervalo de analise ---
-    ANALYSIS_INTERVAL_MS: 30000,  // 30 segundos (mais rapido para futures)
-
-    // --- Modo de execucao ---
-    DRY_RUN: process.env.DRY_RUN !== 'false',
-};
