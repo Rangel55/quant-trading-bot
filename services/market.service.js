@@ -1,4 +1,4 @@
-onst { publicGet } = require('./binance.service');
+const { publicGet } = require('./binance.service');
 const cfg = require('../config/settings');
 
 async function getCandles(symbol, interval, limit) {
