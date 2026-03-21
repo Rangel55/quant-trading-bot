@@ -1,4 +1,4 @@
-equire('dotenv').config();
+require('dotenv').config();
 
 module.exports = {
         API_KEY: process.env.BINANCE_API_KEY,
