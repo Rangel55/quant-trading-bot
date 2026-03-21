@@ -13,126 +13,126 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // Estado do bot
 var botState = {
-    running: false,
-    mode: 'DRY_RUN',
-    capital: cfg.CAPITAL_USDT,
-    stopLossPercent: cfg.STOP_LOSS_PERCENT * 100,
-    takeProfitPercent: cfg.TAKE_PROFIT_PERCENT * 100,
-    leverage: cfg.LEVERAGE,
-    interval: null,
-    currentSymbol: 'BTCUSDT',
-    lastAnalysis: null,
-    startedAt: null,
-    balanceAtStart: 0
+      running: false,
+      mode: 'DRY_RUN',
+      capital: cfg.CAPITAL_USDT,
+      stopLossPercent: cfg.STOP_LOSS_PERCENT * 100,
+      takeProfitPercent: cfg.TAKE_PROFIT_PERCENT * 100,
+      leverage: cfg.LEVERAGE,
+      interval: null,
+      currentSymbol: 'BTCUSDT',
+      lastAnalysis: null,
+      startedAt: null,
+      balanceAtStart: 0
 };
 
 // Arquivo de sessoes do bot
 var sessionsFile = path.join(__dirname, 'logs', 'sessions.json');
 
 function loadSessions() {
-    try {
-          if (fs.existsSync(sessionsFile)) {
-                  return JSON.parse(fs.readFileSync(sessionsFile, 'utf8'));
-          }
-    } catch(e) {}
-    return [];
+      try {
+              if (fs.existsSync(sessionsFile)) {
+                        return JSON.parse(fs.readFileSync(sessionsFile, 'utf8'));
+              }
+      } catch(e) {}
+      return [];
 }
 
 function saveSessions(sessions) {
-    try {
-          var dir = path.join(__dirname, 'logs');
-          if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-          fs.writeFileSync(sessionsFile, JSON.stringify(sessions, null, 2));
-    } catch(e) {}
+      try {
+              var dir = path.join(__dirname, 'logs');
+              if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+              fs.writeFileSync(sessionsFile, JSON.stringify(sessions, null, 2));
+      } catch(e) {}
 }
 
 async function getFuturesBalance() {
-    try {
-          var axios = require('axios');
-          var crypto = require('crypto');
-          var timestamp = Date.now();
-          var query = 'timestamp=' + timestamp;
-          var signature = crypto.createHmac('sha256', process.env.BINANCE_SECRET_KEY || '').update(query).digest('hex');
-          var url = 'https://fapi.binance.com/fapi/v2/account?' + query + '&signature=' + signature;
-          var res = await axios.get(url, {
-                  headers: { 'X-MBX-APIKEY': process.env.BINANCE_API_KEY || '' },
-                  timeout: 5000
-          });
-          var assets = res.data.assets || [];
-          var usdt = assets.find(function(a) { return a.asset === 'USDT'; });
-          return usdt ? parseFloat(usdt.availableBalance) : 0;
-    } catch(e) {
-          return 0;
-    }
+      try {
+              var axios = require('axios');
+              var crypto = require('crypto');
+              var timestamp = Date.now();
+              var query = 'timestamp=' + timestamp;
+              // CORRIGIDO: usa BINANCE_API_SECRET (igual ao .env)
+        var signature = crypto.createHmac('sha256', process.env.BINANCE_API_SECRET || '').update(query).digest('hex');
+              var url = 'https://fapi.binance.com/fapi/v2/account?' + query + '&signature=' + signature;
+              var res = await axios.get(url, {
+                        headers: { 'X-MBX-APIKEY': process.env.BINANCE_API_KEY || '' },
+                        timeout: 10000
+              });
+              var assets = res.data.assets || [];
+              var usdt = assets.find(function(a) { return a.asset === 'USDT'; });
+              return usdt ? parseFloat(usdt.availableBalance) : 0;
+      } catch(e) {
+              return 0;
+      }
 }
 
 // GET /api/status
 app.get('/api/status', function(req, res) {
-    res.json({
-          running: botState.running,
-          mode: botState.mode,
-          capital: botState.capital,
-          stopLossPercent: botState.stopLossPercent,
-          takeProfitPercent: botState.takeProfitPercent,
-          leverage: botState.leverage,
-          currentSymbol: botState.currentSymbol,
-          lastAnalysis: botState.lastAnalysis,
-          startedAt: botState.startedAt,
-          stats: getStats()
-    });
+      res.json({
+              running: botState.running,
+              mode: botState.mode,
+              capital: botState.capital,
+              stopLossPercent: botState.stopLossPercent,
+              takeProfitPercent: botState.takeProfitPercent,
+              leverage: botState.leverage,
+              currentSymbol: botState.currentSymbol,
+              lastAnalysis: botState.lastAnalysis,
+              startedAt: botState.startedAt,
+              stats: getStats()
+      });
 });
 
 // GET /api/balance - saldo real da Binance Futures
 app.get('/api/balance', async function(req, res) {
-    try {
-          var balance = await getFuturesBalance();
-          res.json({ balance: balance, success: true });
-    } catch(e) {
-          res.json({ balance: 0, success: false, error: e.message });
-    }
+      try {
+              var balance = await getFuturesBalance();
+              res.json({ balance: balance, success: true });
+      } catch(e) {
+              res.json({ balance: 0, success: false, error: e.message });
+      }
 });
 
 // GET /api/sessions - historico de sessoes do bot
 app.get('/api/sessions', function(req, res) {
-    var sessions = loadSessions();
-    res.json(sessions.slice(-20).reverse());
+      var sessions = loadSessions();
+      res.json(sessions.slice(-20).reverse());
 });
 
 // POST /api/start - inicia o bot
 app.post('/api/start', async function(req, res) {
-    if (botState.running) {
-          return res.json({ success: false, message: 'Bot ja esta rodando.' });
-    }
-
-           var body = req.body;
-    if (body.capital) botState.capital = parseFloat(body.capital);
-    if (body.stopLoss) botState.stopLossPercent = parseFloat(body.stopLoss);
-    if (body.takeProfit) botState.takeProfitPercent = parseFloat(body.takeProfit);
-    if (body.leverage) botState.leverage = parseInt(body.leverage);
-    if (body.mode) botState.mode = body.mode;
+      if (botState.running) {
+              return res.json({ success: false, message: 'Bot ja esta rodando.' });
+      }
+      var body = req.body;
+      if (body.capital) botState.capital = parseFloat(body.capital);
+      if (body.stopLoss) botState.stopLossPercent = parseFloat(body.stopLoss);
+      if (body.takeProfit) botState.takeProfitPercent = parseFloat(body.takeProfit);
+                    if (body.leverage) botState.leverage = parseInt(body.leverage);
+      if (body.mode) botState.mode = body.mode;
 
            cfg.CAPITAL_USDT = botState.capital;
-    cfg.STOP_LOSS_PERCENT = botState.stopLossPercent / 100;
-    cfg.TAKE_PROFIT_PERCENT = botState.takeProfitPercent / 100;
-    cfg.LEVERAGE = botState.leverage;
-    cfg.DRY_RUN = botState.mode !== 'LIVE';
+      cfg.STOP_LOSS_PERCENT = botState.stopLossPercent / 100;
+      cfg.TAKE_PROFIT_PERCENT = botState.takeProfitPercent / 100;
+      cfg.LEVERAGE = botState.leverage;
+      cfg.DRY_RUN = botState.mode !== 'LIVE';
 
            var validation = await runFullValidation(cfg.DRY_RUN);
-    if (!validation.allPassed) {
-          return res.json({ success: false, message: 'Falha na validacao de seguranca.' });
-    }
+      if (!validation.allPassed) {
+              return res.json({ success: false, message: 'Falha na validacao de seguranca.' });
+      }
 
            // Captura saldo inicial
            botState.balanceAtStart = await getFuturesBalance();
-    botState.running = true;
-    botState.startedAt = new Date().toISOString();
+      botState.running = true;
+      botState.startedAt = new Date().toISOString();
 
            // Primeiro ciclo imediato
            runTradingCycle().catch(function(err) { console.error(err.message); });
 
            // Ciclos periodicos a cada 30s
            botState.interval = setInterval(function() {
-                 runTradingCycle().catch(function(err) { console.error(err.message); });
+                   runTradingCycle().catch(function(err) { console.error(err.message); });
            }, 30000);
 
            res.json({ success: true, message: 'Bot iniciado em modo ' + botState.mode });
@@ -140,79 +140,71 @@ app.post('/api/start', async function(req, res) {
 
 // POST /api/stop - para o bot e salva sessao
 app.post('/api/stop', async function(req, res) {
-    if (!botState.running) {
-          return res.json({ success: false, message: 'Bot nao esta rodando.' });
-    }
+      if (!botState.running) {
+              return res.json({ success: false, message: 'Bot nao esta rodando.' });
+      }
+      if (botState.interval) {
+              clearInterval(botState.interval);
+              botState.interval = null;
+      }
 
-           if (botState.interval) {
-                 clearInterval(botState.interval);
-                 botState.interval = null;
-           }
-
-           // Calcula duracao e lucro/perda da sessao
            var startedAt = botState.startedAt;
-    var stoppedAt = new Date().toISOString();
-    var durationMs = new Date(stoppedAt) - new Date(startedAt);
-    var durationMin = Math.round(durationMs / 60000);
-    var balanceAtEnd = await getFuturesBalance();
-    var profit = balanceAtEnd - botState.balanceAtStart;
-    var profitPercent = botState.balanceAtStart > 0 ? ((profit / botState.balanceAtStart) * 100) : 0;
-    var stats = getStats();
+      var stoppedAt = new Date().toISOString();
+      var durationMs = new Date(stoppedAt) - new Date(startedAt);
+      var durationMin = Math.round(durationMs / 60000);
+      var balanceAtEnd = await getFuturesBalance();
+      var profit = balanceAtEnd - botState.balanceAtStart;
+      var profitPercent = botState.balanceAtStart > 0 ? ((profit / botState.balanceAtStart) * 100) : 0;
+      var stats = getStats();
 
-           // Salva sessao
            var sessions = loadSessions();
-    sessions.push({
-          id: sessions.length + 1,
-          mode: botState.mode,
-          capital: botState.capital,
-          leverage: botState.leverage,
-          stopLoss: botState.stopLossPercent,
-          takeProfit: botState.takeProfitPercent,
-          startedAt: startedAt,
-          stoppedAt: stoppedAt,
-          durationMin: durationMin,
-          balanceAtStart: botState.balanceAtStart,
-          balanceAtEnd: balanceAtEnd,
-          profit: parseFloat(profit.toFixed(4)),
-          profitPercent: parseFloat(profitPercent.toFixed(2)),
-          totalCycles: stats.total,
-          executed: stats.executed,
-          esperar: stats.esperar
-    });
-    saveSessions(sessions);
+      sessions.push({
+              id: sessions.length + 1,
+              mode: botState.mode,
+              capital: botState.capital,
+              leverage: botState.leverage,
+              stopLoss: botState.stopLossPercent,
+              takeProfit: botState.takeProfitPercent,
+              startedAt: startedAt,
+              stoppedAt: stoppedAt,
+              durationMin: durationMin,
+              balanceAtStart: botState.balanceAtStart,
+              balanceAtEnd: balanceAtEnd,
+              profit: parseFloat(profit.toFixed(4)),
+              profitPercent: parseFloat(profitPercent.toFixed(2)),
+              totalCycles: stats.total,
+              executed: stats.executed,
+              esperar: stats.esperar
+      });
+      saveSessions(sessions);
 
            botState.running = false;
-    botState.startedAt = null;
-
-           res.json({
-                 success: true,
-                 message: 'Bot parado.',
-                 session: sessions[sessions.length - 1]
-           });
+      botState.startedAt = null;
+      res.json({ success: true, message: 'Bot parado.', session: sessions[sessions.length - 1] });
 });
 
 // GET /api/history - historico de trades
 app.get('/api/history', function(req, res) {
-    var history = getHistory();
-    res.json(history.slice(-50).reverse());
+      var history = getHistory();
+      res.json(history.slice(-50).reverse());
 });
 
 // POST /api/settings
 app.post('/api/settings', function(req, res) {
-    var body = req.body;
-    if (body.capital) { botState.capital = parseFloat(body.capital); cfg.CAPITAL_USDT = botState.capital; }
-    if (body.stopLoss) { botState.stopLossPercent = parseFloat(body.stopLoss); cfg.STOP_LOSS_PERCENT = botState.stopLossPercent / 100; }
-    if (body.takeProfit) { botState.takeProfitPercent = parseFloat(body.takeProfit); cfg.TAKE_PROFIT_PERCENT = botState.takeProfitPercent / 100; }
-    if (body.leverage) { botState.leverage = parseInt(body.leverage); cfg.LEVERAGE = botState.leverage; }
-    res.json({ success: true, message: 'Configuracoes atualizadas.' });
+      var body = req.body;
+      if (body.capital) { botState.capital = parseFloat(body.capital); cfg.CAPITAL_USDT = botState.capital; }
+      if (body.stopLoss) { botState.stopLossPercent = parseFloat(body.stopLoss); cfg.STOP_LOSS_PERCENT = botState.stopLossPercent / 100; }
+      if (body.takeProfit) { botState.takeProfitPercent = parseFloat(body.takeProfit); cfg.TAKE_PROFIT_PERCENT = botState.takeProfitPercent / 100; }
+      if (body.leverage) { botState.leverage = parseInt(body.leverage); cfg.LEVERAGE = botState.leverage; }
+      res.json({ success: true, message: 'Configuracoes atualizadas.' });
 });
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, function() {
-    console.log('');
-    console.log('========================================');
-    console.log(' QUANT TRADING BOT - Dashboard');
-    console.log(' Acesse: http://localhost:' + PORT);
-    console.log('========================================');
-    console.log('');
+      console.log('');
+      console.log('========================================');
+      console.log(' QUANT TRADING BOT - Dashboard');
+      console.log(' Acesse: http://localhost:' + PORT);
+      console.log('========================================');
+      console.log('');
 });
