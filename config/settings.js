@@ -19,7 +19,7 @@ module.exports = {
     MARGIN_TYPE: 'ISOLATED',                              // ISOLATED protege o restante do capital
 
     // --- Gestao de risco (Futures) ---
-    MAX_POSITION_PERCENT: 0.20,   // 20% do capital por trade (alavancado)
+    MAX_POSITION_PERCENT: 0.90,   // 90% do capital por trade (alavancado)
     MAX_DAILY_TRADES: 10,         // mais trades pois futures e mais liquido
     MIN_VOLATILITY: 0.003,        // volatilidade minima 0.3%
     STOP_LOSS_PERCENT: 0.015,     // stop loss 1.5%
