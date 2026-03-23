@@ -1,132 +1,109 @@
-const { privatePost, privateGet, privateDelete, setLeverage, setMarginType } = require('./binance.service');
+const { privateGet, privatePost, privateDelete } = require('./binance.service');
 const cfg = require('../config/settings');
 
-// Retorna saldo disponivel na conta Futures
-async function getFuturesBalance() {
-    const account = await privateGet('/fapi/v2/account');
-    const usdt = account.assets.find(function(a) { return a.asset === 'USDT'; });
-    return usdt ? parseFloat(usdt.availableBalance) : 0;
+// Retorna saldo disponivel na conta Spot (ativo USDT)
+async function getSpotBalance() {
+  const account = await privateGet('/api/v3/account');
+  const usdt = account.balances.find(function(b) { return b.asset === 'USDT'; });
+  return usdt ? parseFloat(usdt.free) : 0;
 }
 
-// Retorna posicoes abertas atualmente
-async function getOpenPositions(symbol) {
-    const account = await privateGet('/fapi/v2/account');
-    return account.positions.filter(function(p) {
-          var hasPosition = parseFloat(p.positionAmt) !== 0;
-          if (symbol) return p.symbol === symbol && hasPosition;
-          return hasPosition;
-    });
+// Retorna saldo de um ativo especifico no Spot (ex: SOL, XRP)
+async function getAssetBalance(asset) {
+  const account = await privateGet('/api/v3/account');
+  const found = account.balances.find(function(b) { return b.asset === asset; });
+  return found ? parseFloat(found.free) : 0;
 }
 
-// Configura alavancagem e margem antes de operar
-async function setupSymbol(symbol) {
-    symbol = symbol || cfg.SYMBOL;
-    await setMarginType(symbol, cfg.MARGIN_TYPE);
-    await setLeverage(symbol, cfg.LEVERAGE);
+// Abre ordem de COMPRA a mercado no Spot
+async function openBuy(symbol, quantity) {
+  symbol = symbol || cfg.SYMBOL;
+  const params = {
+    symbol: symbol,
+    side: 'BUY',
+    type: 'MARKET',
+    quantity: quantity.toString(),
+  };
+  const result = await privatePost('/api/v3/order', params);
+  console.log('COMPRA executada: ' + quantity + ' ' + symbol + ' | OrderId: ' + result.orderId);
+  return result;
 }
 
-// Abre posicao LONG (compra) em futuros
-async function openLong(symbol, quantity) {
-    symbol = symbol || cfg.SYMBOL;
-    const params = {
-          symbol: symbol,
-          side: 'BUY',
-          type: 'MARKET',
-          quantity: quantity.toString(),
-    };
-    const result = await privatePost('/fapi/v1/order', params);
-    console.log('LONG aberto: ' + quantity + ' ' + symbol + ' | OrderId: ' + result.orderId);
-    return result;
+// Abre ordem de VENDA a mercado no Spot
+async function openSell(symbol, quantity) {
+  symbol = symbol || cfg.SYMBOL;
+  const params = {
+    symbol: symbol,
+    side: 'SELL',
+    type: 'MARKET',
+    quantity: quantity.toString(),
+  };
+  const result = await privatePost('/api/v3/order', params);
+  console.log('VENDA executada: ' + quantity + ' ' + symbol + ' | OrderId: ' + result.orderId);
+  return result;
 }
 
-// Abre posicao SHORT (venda) em futuros
-async function openShort(symbol, quantity) {
-    symbol = symbol || cfg.SYMBOL;
-    const params = {
-          symbol: symbol,
-          side: 'SELL',
-          type: 'MARKET',
-          quantity: quantity.toString(),
-    };
-    const result = await privatePost('/fapi/v1/order', params);
-    console.log('SHORT aberto: ' + quantity + ' ' + symbol + ' | OrderId: ' + result.orderId);
-    return result;
-}
-
-// Fecha posicao aberta (LONG ou SHORT)
-async function closePosition(symbol, quantity, side) {
-    symbol = symbol || cfg.SYMBOL;
-    // Para fechar: se estava LONG (BUY), fecha com SELL e vice-versa
+// Coloca ordem de stop-loss limite no Spot (STOP_LOSS_LIMIT)
+async function placeStopLoss(symbol, side, quantity, stopPrice, limitPrice) {
+  symbol = symbol || cfg.SYMBOL;
   var closeSide = side === 'BUY' ? 'SELL' : 'BUY';
+  limitPrice = limitPrice || stopPrice * (side === 'BUY' ? 0.999 : 1.001);
+  try {
     const params = {
-          symbol: symbol,
-          side: closeSide,
-          type: 'MARKET',
-          quantity: quantity.toString(),
-          reduceOnly: 'true',
+      symbol: symbol,
+      side: closeSide,
+      type: 'STOP_LOSS_LIMIT',
+      quantity: quantity.toString(),
+      price: limitPrice.toFixed(4),
+      stopPrice: stopPrice.toFixed(4),
+      timeInForce: 'GTC',
     };
-    const result = await privatePost('/fapi/v1/order', params);
-    console.log('Posicao fechada: ' + symbol + ' | Side: ' + closeSide);
-    return result;
+    return await privatePost('/api/v3/order', params);
+  } catch (err) {
+    console.error('Erro ao colocar stop-loss Spot:', err.message);
+  }
 }
 
-// Coloca ordem de stop-loss em futuros
-async function placeStopLoss(symbol, side, quantity, stopPrice) {
-    symbol = symbol || cfg.SYMBOL;
-    var closeSide = side === 'BUY' ? 'SELL' : 'BUY';
-    try {
-          const params = {
-                  symbol: symbol,
-                  side: closeSide,
-                  type: 'STOP_MARKET',
-                  quantity: quantity.toString(),
-                  stopPrice: stopPrice.toFixed(4),
-                  reduceOnly: 'true',
-          };
-          return await privatePost('/fapi/v1/order', params);
-    } catch (err) {
-          console.error('Erro ao colocar stop-loss:', err.message);
-    }
-}
-
-// Coloca ordem de take-profit em futuros
+// Coloca ordem de take-profit limite no Spot (TAKE_PROFIT_LIMIT)
 async function placeTakeProfit(symbol, side, quantity, takeProfitPrice) {
-    symbol = symbol || cfg.SYMBOL;
-    var closeSide = side === 'BUY' ? 'SELL' : 'BUY';
-    try {
-          const params = {
-                  symbol: symbol,
-                  side: closeSide,
-                  type: 'TAKE_PROFIT_MARKET',
-                  quantity: quantity.toString(),
-                  stopPrice: takeProfitPrice.toFixed(4),
-                  reduceOnly: 'true',
-          };
-          return await privatePost('/fapi/v1/order', params);
-    } catch (err) {
-          console.error('Erro ao colocar take-profit:', err.message);
-    }
+  symbol = symbol || cfg.SYMBOL;
+  var closeSide = side === 'BUY' ? 'SELL' : 'BUY';
+  var limitPrice = side === 'BUY'
+    ? takeProfitPrice * 0.999
+    : takeProfitPrice * 1.001;
+  try {
+    const params = {
+      symbol: symbol,
+      side: closeSide,
+      type: 'TAKE_PROFIT_LIMIT',
+      quantity: quantity.toString(),
+      price: limitPrice.toFixed(4),
+      stopPrice: takeProfitPrice.toFixed(4),
+      timeInForce: 'GTC',
+    };
+    return await privatePost('/api/v3/order', params);
+  } catch (err) {
+    console.error('Erro ao colocar take-profit Spot:', err.message);
+  }
 }
 
-// Cancela todas as ordens abertas de um simbolo
+// Cancela todas as ordens abertas de um simbolo no Spot
 async function cancelAllOrders(symbol) {
-    symbol = symbol || cfg.SYMBOL;
-    try {
-          await privateDelete('/fapi/v1/allOpenOrders', { symbol: symbol });
-          console.log('Ordens canceladas: ' + symbol);
-    } catch (err) {
-          console.error('Erro ao cancelar ordens:', err.message);
-    }
+  symbol = symbol || cfg.SYMBOL;
+  try {
+    await privateDelete('/api/v3/openOrders', { symbol });
+    console.log('Ordens canceladas: ' + symbol);
+  } catch (err) {
+    console.error('Erro ao cancelar ordens:', err.message);
+  }
 }
 
 module.exports = {
-    getFuturesBalance,
-    getOpenPositions,
-    setupSymbol,
-    openLong,
-    openShort,
-    closePosition,
-    placeStopLoss,
-    placeTakeProfit,
-    cancelAllOrders,
+  getSpotBalance,
+  getAssetBalance,
+  openBuy,
+  openSell,
+  placeStopLoss,
+  placeTakeProfit,
+  cancelAllOrders,
 };
