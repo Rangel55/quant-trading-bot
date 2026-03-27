@@ -1,87 +1,90 @@
-# 🤖 quant-trading-bot
+# Quant Trading Bot - ByBit Futures
 
-Bot de trading quantitativo automatizado com integração real à API da Binance.
+Bot de trading quantitativo para operar **Futuros USDT-Perp** na ByBit, com dashboard web, analise tecnica automatizada e suporte a alavancagem.
 
-## 🏗️ Estrutura do Projeto
+## Funcionalidades
 
-```
-quant-trading-bot/
-├── .env.example          # Variáveis de ambiente (modelo)
-├── .gitignore            # Arquivos ignorados pelo Git
-├── index.js              # Entry point — inicia o bot
-├── package.json          # Dependências Node.js
-├── config/
-│   └── settings.js       # Configurações e constantes
-├── services/
-│   ├── binance.service.js  # Integração segura com API Binance
-│   ├── market.service.js   # Coleta de dados de mercado
-│   └── order.service.js    # Execução e validação de ordens
-├── ai/
-│   └── analysis.service.js # Motor de análise quantitativa
-├── controllers/
-│   └── trading.controller.js # Orquestrador do fluxo completo
-├── risk/
-│   └── risk.manager.js     # Gestão de risco e filtros
-└── logs/
-    └── trade.logger.js     # Registro de operações
-```
+- Integracao completa com **ByBit API V5** (Futuros Linear)
+- Dashboard web em tempo real
+- Scanner automatico de pares com maior volume/volatilidade
+- Analise quantitativa: MA, RSI, Order Book, Open Interest
+- Execucao de ordens **LONG** e **SHORT** com alavancagem configuravel
+- Stop Loss e Take Profit automaticos em cada operacao
+- Modo **DRY RUN** (simulado) e **LIVE** (real)
+- Registro completo de historico e sessoes
 
-## ⚙️ Instalação
+## Requisitos
+
+- Node.js 18+
+- Conta ByBit com acesso a Futuros USDT-Perp
+- Chaves de API ByBit com permissao de trading
+
+## Instalacao
 
 ```bash
 git clone https://github.com/Rangel55/quant-trading-bot.git
 cd quant-trading-bot
 npm install
 cp .env.example .env
-# Edite o .env com suas chaves de API da Binance
+# Edite o .env com suas chaves ByBit
 ```
 
-## 🚀 Execução
+## Configuracao
+
+Edite o arquivo `.env`:
+
+```env
+BYBIT_API_KEY=sua_api_key
+BYBIT_API_SECRET=seu_api_secret
+DRY_RUN=true
+LEVERAGE=10
+PORT=3000
+```
+
+## Uso
 
 ```bash
-# Modo simulação (recomendado para testes)
-npm run dry
-
-# Modo real (apenas após validação extensiva)
-npm run live
+npm start
 ```
 
-## 🔐 Segurança das Chaves de API
+Acesse o dashboard em: **http://localhost:3000**
 
-- ✅ Habilitar apenas: Leitura + Execução de Ordens
-- - ❌ NUNCA habilitar: Saques
-  - - ✅ Restringir por IP quando possível
-    - - ❌ Nunca commitar o arquivo `.env`
-     
-      - ## 📊 Estratégia Quantitativa
-     
-      - O bot utiliza **confluência de sinais** para tomar decisões:
-     
-      - | Sinal | Indicador |
-      - |-------|-----------|
-      - | Tendência | SMA 9, 21, 200 |
-      - | Momentum | RSI 14 |
-      - | Estrutura | Swing Highs/Lows |
-      - | Pressão | Order Book Ratio |
-     
-      - **Regra de entrada:** mínimo **3 de 4 sinais alinhados** + volatilidade mínima de 0.3%
-     
-      - ## 🛡️ Gestão de Risco
-     
-      - - Máximo **2% do capital** por operação
-        - - Máximo **5 trades por dia**
-          - - Stop Loss automático em **1.5%**
-            - - Take Profit em **3%** (Risk:Reward = 1:2)
-             
-              - ## 📋 Decisões Possíveis
-             
-              - O motor de análise retorna exclusivamente:
-             
-              - ```
-                COMPRAR | VENDER | ESPERAR
-                ```
+## Estrutura
 
-                ## ⚠️ Aviso
+```
+quant-trading-bot/
+├── config/
+│   └── settings.js          # Configuracoes gerais (pares, leverage, SL/TP)
+├── services/
+│   ├── bybit.service.js     # Autenticacao e chamadas ByBit API V5
+│   ├── market.service.js    # Dados de mercado (candles, ticker, orderbook)
+│   ├── order.service.js     # Execucao de ordens (Long/Short, SL/TP)
+│   └── connection.validator.js  # Validacao de conexao
+├── controllers/
+│   └── trading.controller.js    # Ciclo principal de trading
+├── ai/
+│   └── analysis.service.js  # Analise quantitativa (MA, RSI, OB)
+├── risk/
+│   └── risk.manager.js      # Gestao de risco e sizing
+├── logs/
+│   └── trade.logger.js      # Registro de operacoes
+├── public/                  # Dashboard web (HTML/CSS/JS)
+├── server.js                # Servidor Express + API REST
+└── .env.example             # Exemplo de configuracao
+```
 
-                Este bot opera com capital real. Teste extensivamente em modo DRY RUN antes de ativar o modo LIVE. O autor não se responsabiliza por perdas financeiras.
-                
+## API Endpoints
+
+| Metodo | Endpoint | Descricao |
+|--------|----------|-----------|
+| GET | /api/status | Estado atual do bot |
+| GET | /api/balance | Saldo USDT na ByBit |
+| GET | /api/history | Historico de operacoes |
+| GET | /api/sessions | Sessoes anteriores |
+| POST | /api/start | Iniciar bot |
+| POST | /api/stop | Parar bot |
+| POST | /api/settings | Atualizar configuracoes |
+
+## Aviso
+
+Este bot e fornecido apenas para fins educacionais. Operar futuros com alavancagem envolve risco elevado de perda. Use sempre o modo DRY RUN antes de operar com capital real.
