@@ -1,57 +1,67 @@
 const { getCandles, getTicker, getOrderBook, scanBestSymbol } = require('../services/market.service');
 const { analyze } = require('../ai/analysis.service');
 const { finalValidation, calculatePositionSize, calculateLevels, registerTrade } = require('../risk/risk.manager');
-const { getSpotBalance, getAssetBalance, openBuy, openSell, placeStopLoss, placeTakeProfit, cancelAllOrders } = require('../services/order.service');
+const { getWalletBalance, openLong, openShort, closePosition, cancelAllOrders, getPositions } = require('../services/order.service');
 const { log, logAnalysis } = require('../logs/trade.logger');
 const cfg = require('../config/settings');
 
 // Simbolo ativo atual (atualizado pelo scanner)
 var currentSymbol = cfg.SYMBOL;
 
-// CICLO PRINCIPAL DE TRADING SPOT
+// CICLO PRINCIPAL DE TRADING FUTUROS BYBIT
 async function runTradingCycle() {
   console.log('');
-  console.log('[' + new Date().toISOString() + '] Iniciando ciclo Spot...');
+  console.log('[' + new Date().toISOString() + '] Iniciando ciclo Futuros ByBit...');
 
-  // PASSO 1: Scanner - seleciona o melhor par disponivel
+  // PASSO 1: Scanner - seleciona o melhor par de futuros disponivel
   try {
     currentSymbol = await scanBestSymbol();
   } catch (err) {
     console.log('Scanner falhou, usando ' + currentSymbol + ': ' + err.message);
   }
 
-  // PASSO 2: Coleta dados de mercado Spot
+  // PASSO 2: Coleta dados de mercado Futuros
   var data = await Promise.all([
-    getCandles(currentSymbol, '15m', 210),
+    getCandles(currentSymbol, '15', 210),
     getTicker(currentSymbol),
     getOrderBook(currentSymbol, 20),
   ]);
   var candles = data[0];
-  var ticker  = data[1];
+  var ticker = data[1];
   var orderBook = data[2];
 
   // PASSO 3: Analise quantitativa
   var analysis = analyze(candles, orderBook);
   analysis.symbol = currentSymbol;
+  analysis.openInterest = ticker.openInterest;
   logAnalysis(analysis);
 
   // PASSO 4: Validacao final
   var validation = finalValidation(analysis);
   if (!validation.approved) {
     console.log('BLOQUEADO: ' + validation.issues.join(' | '));
-    log({ symbol: currentSymbol, decision: 'ESPERAR', price: analysis.price, reason: validation.issues, executed: false });
+    log({
+      symbol: currentSymbol,
+      decision: 'ESPERAR',
+      price: analysis.price,
+      reason: validation.issues,
+      executed: false
+    });
     console.log('');
     console.log('ESPERAR');
     return;
   }
 
-  // PASSO 5: Calculo de posicao (sem alavancagem no Spot)
-  var capital = cfg.DRY_RUN ? cfg.CAPITAL_USDT : await getSpotBalance();
-  var qty = calculatePositionSize(capital, analysis.price, 1); // leverage=1 no Spot
-  var side = analysis.decision === 'COMPRAR' ? 'BUY' : 'SELL';
-  var levels = calculateLevels(analysis.price, side);
+  // PASSO 5: Calculo de posicao com alavancagem (Futuros)
+  var capital = cfg.DRY_RUN ? cfg.CAPITAL_USDT : await getWalletBalance();
+  var leverage = cfg.LEVERAGE || 10;
+  var qty = calculatePositionSize(capital, analysis.price, leverage);
 
-  console.log('Capital: $' + capital.toFixed(2) + ' | Qty: ' + qty + ' | Side: ' + side);
+  // Futuros: COMPRAR = LONG, VENDER = SHORT
+  var side = analysis.decision === 'COMPRAR' ? 'LONG' : 'SHORT';
+  var levels = calculateLevels(analysis.price, side === 'LONG' ? 'BUY' : 'SELL');
+
+  console.log('Capital: $' + capital.toFixed(2) + ' | Leverage: ' + leverage + 'x | Qty: ' + qty + ' | Side: ' + side);
   console.log('Stop Loss: ' + levels.stopLoss.toFixed(4) + ' | Take Profit: ' + levels.takeProfit.toFixed(4));
 
   // PASSO 6: Execucao
@@ -60,8 +70,10 @@ async function runTradingCycle() {
     log({
       symbol: currentSymbol,
       decision: analysis.decision,
-      side, qty,
+      side,
+      qty,
       price: analysis.price,
+      leverage,
       levels,
       executed: false,
       mode: 'DRY_RUN'
@@ -72,48 +84,52 @@ async function runTradingCycle() {
     return;
   }
 
-  // MODO LIVE - execucao real no Spot
+  // MODO LIVE - execucao real nos Futuros ByBit
   try {
-    // No Spot, VENDER so e possivel se tiver o ativo em carteira
-    if (side === 'SELL') {
-      var baseAsset = currentSymbol.replace('USDT', '');
-      var assetBalance = await getAssetBalance(baseAsset);
-      if (assetBalance < qty) {
-        console.log('Sem ' + baseAsset + ' suficiente para vender (' + assetBalance + '). Pulando...');
-        log({ symbol: currentSymbol, decision: 'ESPERAR', price: analysis.price, reason: ['Sem ativo para vender'], executed: false, mode: 'LIVE' });
-        return;
-      }
+    // Verifica se ja existe posicao aberta no par
+    var positions = await getPositions(currentSymbol);
+    var openPos = positions.find(function(p) { return parseFloat(p.size) > 0; });
+    if (openPos) {
+      console.log('Posicao ja aberta em ' + currentSymbol + ' (' + openPos.side + ' ' + openPos.size + '). Pulando...');
+      return;
     }
 
-    // Abre a ordem
+    // Cancela ordens abertas pendentes antes de abrir nova posicao
+    await cancelAllOrders(currentSymbol);
+
+    // Abre posicao LONG ou SHORT
     var order;
-    if (side === 'BUY') {
-      order = await openBuy(currentSymbol, qty);
+    if (side === 'LONG') {
+      order = await openLong(currentSymbol, qty, analysis.price);
     } else {
-      order = await openSell(currentSymbol, qty);
+      order = await openShort(currentSymbol, qty, analysis.price);
     }
-
-    // Coloca stop-loss e take-profit
-    await placeStopLoss(currentSymbol, side, qty, levels.stopLoss);
-    await placeTakeProfit(currentSymbol, side, qty, levels.takeProfit);
 
     registerTrade();
     log({
       symbol: currentSymbol,
       decision: analysis.decision,
-      side, qty,
+      side,
+      qty,
       price: analysis.price,
+      leverage,
       levels,
-      orderId: order.orderId,
+      orderId: order && order.result && order.result.orderId,
       executed: true,
-      mode: 'LIVE_SPOT',
+      mode: 'LIVE_FUTURES',
     });
 
     console.log('');
     console.log(analysis.decision);
   } catch (err) {
-    console.error('ERRO ao executar ordem Spot:', err.response ? JSON.stringify(err.response.data) : err.message);
-    log({ symbol: currentSymbol, decision: analysis.decision, error: err.message, executed: false, mode: 'LIVE_ERROR' });
+    console.error('ERRO ao executar ordem Futuros:', err.response ? JSON.stringify(err.response.data) : err.message);
+    log({
+      symbol: currentSymbol,
+      decision: analysis.decision,
+      error: err.message,
+      executed: false,
+      mode: 'LIVE_ERROR'
+    });
     console.log('');
     console.log('ESPERAR');
   }
