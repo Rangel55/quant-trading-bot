@@ -1,102 +1,71 @@
-const { publicGet, privateGet } = require('./binance.service');
-const { API_KEY, SYMBOL } = require('../config/settings');
+const { publicGet, privateGet } = require('./bybit.service');
+const cfg = require('../config/settings');
 
-async function testPublicConnection() {
+// Valida conexao com ByBit Futures
+async function validateConnection() {
+  var errors = [];
+  var warnings = [];
+
+  // 1. Verifica conectividade publica (server time)
   try {
-    await publicGet('/api/v3/ping');
-    const timeData = await publicGet('/api/v3/time');
-    const diff = Math.abs(Date.now() - timeData.serverTime);
-    if (diff > 5000) console.warn('AVISO: Diferenca de horario: ' + diff + 'ms');
-    console.log('Conexao Spot OK | Server time: ' + new Date(timeData.serverTime).toISOString());
-    return true;
+    const timeData = await publicGet('/v5/market/time', {});
+    if (!timeData || !timeData.result) throw new Error('Resposta invalida do servidor');
+    var serverTime = parseInt(timeData.result.timeNano) / 1e6;
+    var localTime = Date.now();
+    var drift = Math.abs(serverTime - localTime);
+    if (drift > 5000) {
+      warnings.push('Diferenca de tempo: ' + drift + 'ms (max recomendado: 5000ms)');
+    }
+    console.log('Conectividade publica ByBit: OK (drift: ' + drift + 'ms)');
   } catch (err) {
-    console.error('ERRO conexao Spot: ' + err.message);
-    return false;
+    errors.push('Falha na conectividade publica: ' + err.message);
   }
-}
 
-async function testPrivateConnection() {
-  if (!API_KEY || API_KEY === 'cole_sua_api_key_aqui') {
-    console.error('ERRO: BINANCE_API_KEY nao configurada');
-    return false;
-  }
+  // 2. Verifica autenticacao (carteira UNIFIED)
   try {
-    const account = await privateGet('/api/v3/account');
-    const usdt = account.balances.find(function(b) { return b.asset === 'USDT'; });
-    const balance = usdt ? parseFloat(usdt.free) : 0;
-    console.log('Autenticacao Spot OK | Saldo USDT: $' + balance.toFixed(2));
-    return true;
-  } catch (err) {
-    if (err.response && err.response.data) {
-      console.error('ERRO Binance [' + err.response.data.code + ']: ' + err.response.data.msg);
-    } else {
-      console.error('ERRO autenticacao Spot: ' + err.message);
+    const walletData = await privateGet('/v5/account/wallet-balance', {
+      accountType: 'UNIFIED',
+      coin: 'USDT'
+    });
+    if (!walletData || walletData.retCode !== 0) {
+      throw new Error('retCode: ' + (walletData && walletData.retCode) + ' - ' + (walletData && walletData.retMsg));
     }
-    return false;
+    var list = walletData.result.list;
+    var coin = list && list[0] && list[0].coin.find(function(c) { return c.coin === 'USDT'; });
+    var balance = coin ? parseFloat(coin.walletBalance || 0) : 0;
+    console.log('Autenticacao ByBit: OK | Saldo USDT: $' + balance.toFixed(2));
+  } catch (err) {
+    errors.push('Falha na autenticacao: ' + err.message);
   }
-}
 
-async function testSymbol() {
+  // 3. Verifica acesso ao par principal nos Futuros
   try {
-    const info = await publicGet('/api/v3/exchangeInfo', { symbol: SYMBOL });
-    var symbolInfo = info.symbols && info.symbols.find(function(s) { return s.symbol === SYMBOL; });
-    if (!symbolInfo || symbolInfo.status !== 'TRADING') {
-      console.error('ERRO: Simbolo ' + SYMBOL + ' invalido para Spot.');
-      return false;
+    const tickerData = await publicGet('/v5/market/tickers', {
+      category: 'linear',
+      symbol: cfg.SYMBOL
+    });
+    if (!tickerData || !tickerData.result || !tickerData.result.list || tickerData.result.list.length === 0) {
+      throw new Error('Par ' + cfg.SYMBOL + ' nao encontrado nos Futuros ByBit');
     }
-    console.log('Simbolo OK | ' + SYMBOL + ' | Status: ' + symbolInfo.status);
-    return true;
+    var ticker = tickerData.result.list[0];
+    console.log('Par Futuros ' + cfg.SYMBOL + ': OK | Preco: $' + ticker.lastPrice);
   } catch (err) {
-    console.error('ERRO ao validar simbolo: ' + err.message);
-    return false;
+    errors.push('Falha ao verificar par ' + cfg.SYMBOL + ': ' + err.message);
   }
+
+  // Resultado
+  if (errors.length > 0) {
+    console.error('VALIDACAO FALHOU:');
+    errors.forEach(function(e) { console.error('  - ' + e); });
+    throw new Error('Falhas de validacao: ' + errors.join('; '));
+  }
+
+  if (warnings.length > 0) {
+    warnings.forEach(function(w) { console.warn('AVISO: ' + w); });
+  }
+
+  console.log('Validacao ByBit Futures: APROVADA');
+  return true;
 }
 
-async function runFullValidation(dryRun) {
-  console.log('');
-  console.log('==============================================');
-  console.log(' VALIDACAO DE SEGURANCA - SPOT');
-  console.log('==============================================');
-
-  var results = {
-    publicConnection: false,
-    privateConnection: false,
-    symbolValid: false,
-    allPassed: false
-  };
-
-  console.log('Teste 1/3: Conexao com Binance Spot...');
-  results.publicConnection = await testPublicConnection();
-  if (!results.publicConnection) {
-    console.error('FALHA: Sem conexao.');
-    return results;
-  }
-
-  console.log('Teste 2/3: Autenticacao da API Spot...');
-  if (dryRun && (!API_KEY || API_KEY === 'cole_sua_api_key_aqui')) {
-    console.log('DRY RUN sem chaves - pulando autenticacao');
-    results.privateConnection = true;
-  } else {
-    results.privateConnection = await testPrivateConnection();
-    if (!results.privateConnection) {
-      console.error('FALHA: Autenticacao invalida.');
-      return results;
-    }
-  }
-
-  console.log('Teste 3/3: Validando simbolo ' + SYMBOL + ' no Spot...');
-  results.symbolValid = await testSymbol();
-  if (!results.symbolValid) {
-    console.error('FALHA: Simbolo invalido.');
-    return results;
-  }
-
-  results.allPassed = true;
-  console.log('==============================================');
-  console.log(' TODOS OS TESTES PASSARAM - Sistema OK');
-  console.log('==============================================');
-  console.log('');
-  return results;
-}
-
-module.exports = { testPublicConnection, testPrivateConnection, testSymbol, runFullValidation };
+module.exports = { validateConnection };
